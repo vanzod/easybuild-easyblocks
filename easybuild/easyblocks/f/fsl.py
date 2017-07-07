@@ -37,6 +37,7 @@ import easybuild.tools.environment as env
 from easybuild.framework.easyblock import EasyBlock
 from easybuild.tools.build_log import EasyBuildError
 from easybuild.tools.run import run_cmd
+from distutils.version import LooseVersion
 
 
 class EB_FSL(EasyBlock):
@@ -64,14 +65,21 @@ class EB_FSL(EasyBlock):
         self.log.debug("FSL machine type: %s" % fslmachtype)
 
         # prepare config
-        # either using matching config, or copy closest match
+        # get list of available config dirs
         cfgdir = os.path.join(self.fsldir, "config")
-        try:
-            cfgs = os.listdir(cfgdir)
-            best_cfg = difflib.get_close_matches(fslmachtype, cfgs)[0]
+        cfgs = os.listdir(cfgdir)
 
+        # from version 5.0.10 only the general configuration is patched
+        if LooseVersion(self.version) >= LooseVersion("5.0.10"):
+            best_cfg = os.path.join(cfgdir, "generic")
+            self.log.debug("Using generic config parameters")
+        else:
+            # either using matching config, or copy closest match
+            best_cfg = difflib.get_close_matches(fslmachtype, cfgs)[0]
             self.log.debug("Best matching config dir for %s is %s" % (fslmachtype, best_cfg))
 
+        # copy selected config dir to the one matching the fslmatchtype.sh output
+        try:
             if fslmachtype != best_cfg:
                 srcdir = os.path.join(cfgdir, best_cfg)
                 tgtdir = os.path.join(cfgdir, fslmachtype)
